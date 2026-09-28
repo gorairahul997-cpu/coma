@@ -8,16 +8,17 @@ Double-click `index.html`. It works offline with no server; only the Google web 
 ## Pages
 | Page | What it does |
 |---|---|
-| Home | Exam pattern, format shortcuts, focus areas, syllabus chapter cards (with Bengali titles), progress |
-| Notes | Key points, syntax, tables, code examples with output, exam traps, and "practise this chapter by format" |
+| Home | Continue reading (last chapter + next unread), exam pattern, format shortcuts, focus areas, syllabus chapter cards (with Bengali titles), progress |
+| Notes | Recall mode (key points and traps hidden until tapped), key points, syntax, tables, code examples with output, exam traps, and "practise this chapter by format" |
 | Practice | Quick starts, a card per question format, a custom quiz builder (chapters, formats, difficulty, source, count, order, feedback style, timer), per-chapter accuracy, and the optional beyond-syllabus set |
 | Quiz player | One question at a time in any format; keys `1`–`4` / `A`–`D` (`T`/`F` for true/false), `←` `→`, `S` to bookmark; results broken down by chapter and format |
 | Browse | The whole question bank with search and filters (chapter, format, difficulty, status) |
 | Mock Tests | 10 board-pattern papers (mixed formats), 11 practice papers including a hard challenge paper, and a random paper; mark for review, auto-save and resume, score per unit and format, attempt history |
 | Short Answers | Reveal answers, rate yourself ("I knew it" / "Revise again"), filter and search |
+| Flashcards | One short answer at a time, "revise again" cards first; `Space` shows the answer, `1` / `2` rates it |
 | Programs | 17 Python programs; practice mode hides the code until you reveal it |
 | Revision | Tabs: quick revision, exam tips + last-night plan, glossary (search and flashcards), Python keywords, all exam traps, Semester IV preview |
-| Progress | Stats, study streak, 14-day activity, accuracy by format and chapter, mock and quiz history, backup/restore to a file, reset |
+| Progress | Stats, study streak, 14-day activity, accuracy by format and chapter, mock and quiz history, backup/restore to a file (answers, review schedule and settings), reset |
 
 ### Question formats
 All formats share one practice engine, so quizzes, the builder, bookmarks, "retry wrong", progress and search work for every one of them.

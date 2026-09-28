@@ -48,7 +48,7 @@
     progress: 'coma-progress', bookmarks: 'coma-bookmarks', read: 'coma-read', sa: 'coma-sa-self',
     mockHist: 'coma-mock-history', mockRun: 'coma-mock-run-', activity: 'coma-activity',
     quiz: 'coma-quiz', quizHist: 'coma-quiz-history', builder: 'coma-builder-v2', hideCode: 'coma-hide-code',
-    srs: 'coma-srs', goal: 'coma-goal', examDate: 'coma-exam-date'
+    srs: 'coma-srs', goal: 'coma-goal', examDate: 'coma-exam-date', lastCh: 'coma-last-chapter', recall: 'coma-recall-mode'
   };
   var progress = store.get(K.progress, {});     // { itemId: lastResponse } (letter, 'T'/'F', text or array)
   var bookmarks = store.get(K.bookmarks, {});   // { itemId: 1 }
@@ -450,7 +450,7 @@
   }
 
   // ---------- router ----------
-  var NAV_OF = { q: 'practice', quiz: 'practice', browse: 'practice' };
+  var NAV_OF = { q: 'practice', quiz: 'practice', browse: 'practice', flash: 'short' };
   function route() {
     cleanups.forEach(function (fn) { try { fn(); } catch (e) {} });
     cleanups = [];
@@ -466,13 +466,14 @@
       case 'quiz': renderQuiz(); break;
       case 'q': renderSingleItem(p[1]); break;
       case 'short': renderShort(p[1] || 'all', r.qs); break;
+      case 'flash': renderFlash(p[1] || 'all'); break;
       case 'programs': renderPrograms(r.qs); break;
       case 'mock': p[1] ? renderMock(p[1]) : renderMockIndex(); break;
       case 'revision': renderRevision(p[1] || 'quick', r.qs); break;
       case 'progress': renderProgress(); break;
       default: page = 'home'; renderHome();
     }
-    document.title = (page === 'home' ? '' : cap(page) + ' · ') + 'COMA Study Pack';
+    document.title = (page === 'home' ? '' : (page === 'flash' ? 'Flashcards' : cap(page)) + ' · ') + 'COMA Study Pack';
   }
 
   // =====================================================================
@@ -501,6 +502,9 @@
       html += '<div class="card resume section"><div><b>Unfinished quiz:</b> ' + esc(saved.title) + ' — ' +
         Object.keys(saved.answers).length + ' / ' + saved.ids.length + ' answered</div><a class="btn sm" href="#/quiz">Resume</a></div>';
     }
+
+    var cont = continueCard();
+    if (cont) html += cont;
 
     html += '<div class="grid grid-4 section">' +
       stat(items.length, 'Practice questions') + stat(mocks.length, 'Mock papers') +
@@ -563,6 +567,18 @@
     }
     app.innerHTML = html;
     wireTodayCard();
+  }
+  // the chapter opened last, plus the next chapter not yet marked as read
+  function continueCard() {
+    var last = chapterById[store.get(K.lastCh, '')];
+    var next = chapters.filter(function (c) { return !readCh[c.chapter_id] && c !== last; })[0];
+    if (!last && !Object.keys(readCh).length) return '';
+    return '<div class="card resume section continue"><div><b>' + (last ? 'Continue reading:' : 'Next chapter:') + '</b> ' +
+      esc((last || next || {}).title || '') +
+      (last && next ? '<div class="small muted">Next unread: ' + esc(next.title) + '</div>' : '') + '</div>' +
+      '<div class="btn-row">' + (last ? '<a class="btn sm" href="#/notes/' + last.chapter_id + '">Open notes</a>' : '') +
+      (next ? '<a class="btn sm ' + (last ? 'ghost' : '') + '" href="#/notes/' + next.chapter_id + '">' + (last ? 'Next unread' : 'Start') + '</a>' : '') +
+      '</div></div>';
   }
   // daily goal ring, exam countdown and smart-review call to action
   function todayCard() {
@@ -634,6 +650,8 @@
     var nProg = ((D.question_bank && D.question_bank.programs) || []).filter(function (s) { return s.chapter_id === id; }).length;
     var chItems = itemsFor(id);
     var st = stats(chItems);
+    var recall = !!store.get(K.recall, false);
+    store.set(K.lastCh, id);
 
     var body = '<div class="crumbs"><a href="#/notes">Notes</a> / ' + esc(ch.unit) + '</div>' +
       '<h1 style="margin-bottom:4px">' + esc(ch.title) + '</h1>' + (ch.title_bn ? '<p class="bn-sub big">' + esc(ch.title_bn) + '</p>' : '') +
@@ -642,13 +660,18 @@
       '<div class="btn-row" style="margin-bottom:20px">' +
       '<button class="btn sm"' + quizAttr({ chapters: [id], count: 10, title: ch.title }) + '>Quiz: 10 questions</button>' +
       '<a class="btn sm ghost" href="#/browse/' + id + '">All ' + st.total + ' questions</a>' +
-      (nShort ? '<a class="btn sm ghost" href="#/short/' + id + '">' + nShort + ' short answers</a>' : '') +
+      (nShort ? '<a class="btn sm ghost" href="#/short/' + id + '">' + nShort + ' short answers</a>' +
+        '<a class="btn sm ghost" href="#/flash/' + id + '">🃏 Flashcards</a>' : '') +
       (nProg ? '<a class="btn sm ghost" href="#/programs?ch=' + id + '">' + nProg + ' programs</a>' : '') + '</div>';
 
     if (!n) body += '<div class="card empty">No notes for this chapter yet.</div>';
     else {
       if (n.key_points && n.key_points.length) {
-        body += '<div class="card"><h2>Key points</h2><ul class="key-points">' +
+        body += '<div class="card"><div class="section-title kp-head"><h2 style="margin:0">Key points</h2>' +
+          '<div class="btn-row"><label class="toggle small"><input type="checkbox" id="recallTgl"' + (recall ? ' checked' : '') + '> Recall mode</label>' +
+          (recall ? '<button class="btn sm ghost" id="revealAll">Reveal all</button>' : '') + '</div></div>' +
+          (recall ? '<p class="small muted recall-hint">Say each point to yourself, then tap it to check.</p>' : '') +
+          '<ul class="key-points">' +
           n.key_points.map(function (k) { return '<li>' + formatText(k) + '</li>'; }).join('') + '</ul></div>';
       }
       if (n.syntax) {
@@ -691,7 +714,19 @@
     body += '<div class="chapter-nav">' +
       (prev ? '<a class="btn ghost" href="#/notes/' + prev.chapter_id + '">← ' + esc(prev.title) + '</a>' : '<span></span>') +
       (next ? '<a class="btn ghost" href="#/notes/' + next.chapter_id + '">' + esc(next.title) + ' →</a>' : '') + '</div>';
-    app.innerHTML = '<div class="notes-layout">' + sideList(id) + '<article>' + body + '</article></div>';
+    app.innerHTML = '<div class="notes-layout' + (recall ? ' recall' : '') + '">' + sideList(id) + '<article>' + body + '</article></div>';
+
+    var rt = document.getElementById('recallTgl');
+    if (rt) rt.onchange = function () {
+      store.set(K.recall, this.checked);
+      var y = window.scrollY; renderChapter(id); window.scrollTo(0, y);
+    };
+    var ra = document.getElementById('revealAll');
+    if (ra) ra.onclick = function () { app.querySelectorAll('.key-points li, .traps li').forEach(function (li) { li.classList.add('shown'); }); };
+    if (recall) app.querySelector('article').addEventListener('click', function (e) {
+      var li = e.target.closest('.key-points li, .trap-box .traps li');
+      if (li) li.classList.toggle('shown');
+    });
 
     document.getElementById('readBtn').onclick = function () {
       if (readCh[id]) delete readCh[id]; else readCh[id] = 1;
@@ -700,9 +735,10 @@
       var y = window.scrollY; renderChapter(id); window.scrollTo(0, y);
     };
   }
-  // escape text and bold a leading "Term:" label
+  // escape text and bold a leading "Term:" label; the rest is what recall mode hides
   function formatText(s) {
-    return esc(s).replace(/^([A-Za-z][\w\s\-\/()&#;.,']{1,48}?):\s/, '<b>$1:</b> ');
+    var h = esc(s), m = h.match(/^([A-Za-z][\w\s\-\/()&#;.,']{1,48}?):\s/);
+    return m ? '<b>' + m[1] + ':</b> <span class="kp-body">' + h.slice(m[0].length) + '</span>' : '<span class="kp-body">' + h + '</span>';
   }
 
   // =====================================================================
@@ -800,6 +836,9 @@
       body += n + ' / ' + it.column_a.length + ' pairs correct.';
     }
     if (it.explanation) body += esc(it.explanation);
+    if (!ok && it.chapter_id && notesById[it.chapter_id]) {
+      body += '<a class="explain-link small" href="#/notes/' + it.chapter_id + '">📘 Revise ' + esc(chapterById[it.chapter_id].title) + ' notes →</a>';
+    }
     return '<div class="explain">' + head + body + '</div>';
   }
   function itemBody(it, st) {
@@ -1209,6 +1248,7 @@
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.ctrlKey || e.metaKey || e.altKey) return;
       if (!document.getElementById('searchOverlay').hidden) return;
       var k = e.key.toLowerCase(), q = qs[s.idx];
+      if ((k === 'enter' || k === ' ') && (tag === 'button' || tag === 'a')) return;
       var letters = q.fmt === 'opt' || q.fmt === 'tf' ? Object.keys(optMap(q)) : [];
       var n = '1234'.indexOf(k);
       if (n >= 0 && letters[n]) { e.preventDefault(); choose(letters[n]); }
@@ -1445,6 +1485,7 @@
       }).join('') + '</select></div>' +
       '<div class="score-strip"><span class="pill good">✓ ' + nKnow + ' known</span><span class="pill bad">↻ ' + nRev + ' to revise</span><span class="pill">' + (scope.length - nKnow - nRev) + ' not rated</span>' +
       '<div style="flex:1;min-width:140px">' + bar(scope.length ? nKnow / scope.length * 100 : 0) + '</div>' +
+      (scope.length ? '<a class="btn sm" href="#/flash/' + chId + '">🃏 Flashcard drill</a>' : '') +
       '<button class="btn ghost sm" id="expandAll">Show all</button><button class="btn ghost sm" id="collapseAll">Hide all</button></div>';
     var lastCh = null;
     list.forEach(function (s) {
@@ -1480,6 +1521,90 @@
     document.getElementById('expandAll').onclick = function () { app.querySelectorAll('details.qa').forEach(function (d) { d.open = true; }); };
     document.getElementById('collapseAll').onclick = function () { app.querySelectorAll('details.qa').forEach(function (d) { d.open = false; }); };
     if (openId) { var el = document.getElementById(openId); if (el && !qs.status) el.scrollIntoView({ block: 'center' }); }
+  }
+
+  // =====================================================================
+  // Flashcard drill for short answers: one card at a time, rate each
+  // =====================================================================
+  function renderFlash(chId) {
+    var all = (D.question_bank && D.question_bank.short_answer) || [];
+    if (chId !== 'all' && !chapterById[chId]) chId = 'all';
+    var scope = chId === 'all' ? all : all.filter(function (x) { return x.chapter_id === chId; });
+    var name = chId === 'all' ? 'All chapters' : chapterById[chId].title;
+    var includeKnown = false, deck, pos, shown, tally;
+
+    // "revise again" cards first, then unrated ones; known cards only when asked for
+    function deal() {
+      var rev = scope.filter(function (x) { return saSelf[x.id] === 'review'; });
+      var fresh = scope.filter(function (x) { return !saSelf[x.id]; });
+      deck = shuffle(rev).concat(shuffle(fresh));
+      if (includeKnown || !deck.length) deck = deck.concat(shuffle(scope.filter(function (x) { return saSelf[x.id] === 'know'; })));
+      pos = 0; shown = false; tally = { know: 0, review: 0 };
+    }
+    function rate(v) {
+      var c = deck[pos];
+      saSelf[c.id] = v; store.set(K.sa, saSelf);
+      tally[v]++;
+      pos++; shown = false; draw();
+    }
+    function draw() {
+      var head = '<div class="crumbs"><a href="#/short/' + chId + '">Short answers</a> / Flashcards</div>' +
+        '<div class="page-head"><h1>Flashcards</h1><p>' + esc(name) + ' · answer out loud or on paper, then check and be honest with your rating.</p></div>';
+      if (!scope.length) { app.innerHTML = head + '<div class="card empty">No short answers for this chapter.</div>'; return; }
+      if (pos >= deck.length) {
+        var left = scope.filter(function (x) { return saSelf[x.id] !== 'know'; }).length;
+        app.innerHTML = head + '<div class="card result-card flash-done"><div class="result-big">' + tally.know + ' / ' + deck.length + '</div>' +
+          '<p style="margin:0 0 12px">known this round' + (tally.review ? ' · ' + tally.review + ' to revise again' : '') + '</p>' +
+          '<div class="btn-row">' + (left ? '<button class="btn" id="againBtn">↻ Drill the ' + left + ' not yet known</button>' : '<span class="pill good">🎉 Every card in this set is marked known</span>') +
+          '<button class="btn ghost" id="allBtn">Drill all ' + scope.length + '</button>' +
+          '<a class="btn ghost" href="#/short/' + chId + '">Back to list</a></div></div>';
+        var ag = document.getElementById('againBtn');
+        if (ag) ag.onclick = function () { includeKnown = false; deal(); draw(); };
+        document.getElementById('allBtn').onclick = function () { includeKnown = true; deal(); draw(); };
+        return;
+      }
+      var c = deck[pos], r = saSelf[c.id];
+      var chOpts = '<option value="all">All chapters (' + all.length + ')</option>' + chapters.map(function (x) {
+        var n = all.filter(function (a) { return a.chapter_id === x.chapter_id; }).length;
+        return n ? '<option value="' + x.chapter_id + '"' + (x.chapter_id === chId ? ' selected' : '') + '>' + esc(x.title) + ' (' + n + ')</option>' : '';
+      }).join('');
+      app.innerHTML = head +
+        '<div class="filters"><select id="flCh" aria-label="Chapter">' + chOpts + '</select>' +
+        '<label class="toggle"><input type="checkbox" id="flKnown"' + (includeKnown ? ' checked' : '') + '> Include cards I already know</label></div>' +
+        '<div class="quiz-progress">' + bar(pos / deck.length * 100) + '<span class="small muted">Card ' + (pos + 1) + ' of ' + deck.length +
+        ' · <span class="good-t">✓ ' + tally.know + '</span> · <span class="warn-t">↻ ' + tally.review + '</span></span></div>' +
+        '<div class="card flashcard' + (shown ? ' shown' : '') + '">' +
+        '<div class="mcq-head"><span class="small muted mono">' + esc(c.id) + '</span><span class="head-tags">' +
+        (chId === 'all' ? '<span class="tag ' + unitClass(c.unit) + '">' + esc((chapterById[c.chapter_id] || {}).title || c.chapter || '') + '</span>' : '') +
+        (r ? '<span class="tag ' + (r === 'know' ? 'easy' : 'medium') + '">' + (r === 'know' ? '✓ known' : '↻ revise') + '</span>' : '') + '</span></div>' +
+        '<div class="flash-q">' + esc(c.question) + '</div>' +
+        (shown ? '<div class="flash-a">' + esc(c.answer).replace(/\n/g, '<br>') + '</div>' +
+          '<div class="btn-row flash-rate"><button class="btn" data-fr="know">✓ I knew it <kbd class="khint">1</kbd></button>' +
+          '<button class="btn warn" data-fr="review">↻ Revise again <kbd class="khint">2</kbd></button></div>' :
+          '<div class="btn-row"><button class="btn" id="showBtn">Show answer <kbd class="khint">Space</kbd></button>' +
+          '<button class="btn ghost" id="skipBtn">Skip</button></div>') + '</div>' +
+        '<p class="small muted kbd-help">Keys: <kbd>Space</kbd> show answer · <kbd>1</kbd> knew it · <kbd>2</kbd> revise again · <kbd>→</kbd> skip</p>';
+
+      document.getElementById('flCh').onchange = function () { location.hash = '#/flash/' + this.value; };
+      document.getElementById('flKnown').onchange = function () { includeKnown = this.checked; deal(); draw(); };
+      var sb = document.getElementById('showBtn');
+      if (sb) { sb.onclick = function () { shown = true; draw(); }; if (!('ontouchstart' in window)) sb.focus(); }
+      var kb = document.getElementById('skipBtn');
+      if (kb) kb.onclick = function () { pos++; draw(); };
+      app.querySelectorAll('[data-fr]').forEach(function (b) { b.onclick = function () { rate(b.getAttribute('data-fr')); }; });
+    }
+    function onKey(e) {
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!document.getElementById('searchOverlay').hidden || !deck || pos >= deck.length) return;
+      if (!shown && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); shown = true; draw(); }
+      else if (shown && e.key === '1') rate('know');
+      else if (shown && e.key === '2') rate('review');
+      else if (e.key === 'ArrowRight') { pos++; shown = false; draw(); }
+    }
+    deal(); draw();
+    document.addEventListener('keydown', onKey);
+    onLeave(function () { document.removeEventListener('keydown', onKey); });
   }
 
   // update a short answer's self-rating in place (no re-render, so the list doesn't jump)
@@ -1917,7 +2042,9 @@
       '<button class="btn ghost danger" id="resetAll">Reset all progress</button></div></div>';
     app.innerHTML = html;
 
-    var keys = [K.progress, K.bookmarks, K.read, K.sa, K.mockHist, K.activity, K.quizHist];
+    // progress is wiped by "Reset all"; settings (goal, exam date, display modes) are only backed up
+    var dataKeys = [K.progress, K.bookmarks, K.read, K.sa, K.mockHist, K.activity, K.quizHist, K.srs, K.lastCh];
+    var keys = dataKeys.concat([K.goal, K.examDate, K.hideCode, K.recall]);
     document.getElementById('exportBtn').onclick = function () {
       var data = { app: 'coma-study-pack', exported: new Date().toISOString(), data: {} };
       keys.forEach(function (k) { data.data[k] = store.get(k, null); });
@@ -1944,7 +2071,7 @@
     };
     document.getElementById('resetAll').onclick = function () {
       if (!confirm('Delete ALL your answers, bookmarks, ratings and test history from this browser? This cannot be undone.')) return;
-      keys.concat([K.quiz, K.builder]).forEach(store.del);
+      dataKeys.concat([K.quiz, K.builder]).forEach(store.del);
       mocks.forEach(function (m) { store.del(K.mockRun + m.id); });
       location.reload();
     };

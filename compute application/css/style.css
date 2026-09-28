@@ -602,7 +602,36 @@ kbd {
 }
 .to-top.show { opacity: 1; pointer-events: auto; transform: none; }
 
+/* link from a wrong answer to the chapter notes */
+.explain-link { display: inline-block; margin-top: 8px; font-weight: 600; }
+
+/* notes: recall mode hides each point until tapped */
+.kp-head { margin-bottom: 8px; align-items: center; }
+.recall-hint { margin: 0 0 6px; }
+.recall .key-points li, .recall .trap-box .traps li { cursor: pointer; }
+.recall .key-points li .kp-body, .recall .trap-box .traps li .kp-body {
+  filter: blur(6px); user-select: none; transition: filter .2s;
+}
+.recall .key-points li.shown .kp-body, .recall .trap-box .traps li.shown .kp-body { filter: none; user-select: auto; }
+
+/* short-answer flashcards */
+.flashcard { padding: 22px; margin-bottom: 12px; }
+.flash-q { font-size: 1.15rem; font-weight: 600; margin: 6px 0 18px; }
+.flash-a {
+  padding: 14px 16px; margin-bottom: 16px; border-radius: 10px; background: var(--surface-2);
+  border-left: 4px solid var(--primary); animation: flash-in .2s ease-out;
+}
+@keyframes flash-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.flash-rate .btn { flex: 1 1 160px; justify-content: center; }
+.flashcard .khint { margin-left: 6px; opacity: .7; font-size: .75rem; }
+.flash-done { text-align: center; }
+.flash-done .btn-row { justify-content: center; }
+.good-t { color: var(--good); font-weight: 600; }
+.warn-t { color: var(--warn); font-weight: 600; }
+@media (hover: none) { .flashcard .khint { display: none; } }
+
 @media print {
   .topbar, .footer, .filters, .btn, .pager, .to-top { display: none !important; }
+  .recall .kp-body { filter: none !important; }
   body { background: #fff; }
 }
